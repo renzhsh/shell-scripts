@@ -10,7 +10,8 @@ commands=(
     "01 系统版本信息 sys_info"
     "02 CPU信息 sys_info"
     "03 配置静态IP change_static_ip"
-    "04 用户输入 change_static_ip"
+    "04 防火墙设置 sys_firewall"
+)
 
 load_panel() {
     echo "===============FUCK 命令行=================="
