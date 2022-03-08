@@ -5,12 +5,15 @@
 source ./tool.sh
 source ./system.sh
 source ./net.sh
+source ./docker.sh
 
 commands=(
     "01 系统版本信息 sys_info"
     "02 CPU信息 sys_info"
     "03 配置静态IP change_static_ip"
     "04 防火墙设置 sys_firewall"
+    "05 安装Docker环境 install_docker"
+    "06 防火墙设置 sys_firewall"
 )
 
 load_panel() {
