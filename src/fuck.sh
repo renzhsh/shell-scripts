@@ -2,11 +2,6 @@
 #! author: sheng
 #! date: 2022-03-05
 
-source ./tool.sh
-source ./system.sh
-source ./net.sh
-source ./docker.sh
-
 commands=(
     "01 系统版本信息 sys_info"
     "02 CPU信息 sys_info"
