@@ -1,0 +1,339 @@
+#! /bin/bash
+#! author: sheng
+#! date: 2022年 03月 09日 星期三 18:14:47 CST
+
+
+#! link: src/tool.sh
+
+
+is_ipv4(){
+
+    if [[ $1 =~ ^([0-9]{1,2}|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.([0-9]{1,2}|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.([0-9]{1,2}|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.([0-9]{1,2}|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$ ]]
+    then
+        #echo "Match: ${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}.${BASH_REMATCH[4]}"
+        return 0
+    else
+        #echo "Not match"
+        return 1
+    fi
+
+}
+
+readn(){
+    read INPUT
+    while [ -z $INPUT ] # 输入为空
+    do
+        read INPUT
+    done
+
+    echo $INPUT
+}
+#! link: src/system.sh
+
+sys_info() {
+
+    echo -e "\n\n\n ==========操作系统信息===============\n\n"
+    echo "发行版本：$(cat /etc/redhat-release)"
+    echo "内核版本：$(cat /proc/version)"
+    echo " OS位数：$(getconf LONG_BIT)"
+
+    echo -e "\n ====================================="
+}
+
+sys_firewall_cmd(){
+    echo -e "\n\n\n ==========防火墙设置===============\n"
+    echo "命令列表："
+    echo -e " p  查看状态\n"
+    echo " s  启动"
+    echo " t  停止"
+    echo -e " r  重启\n"
+    echo " l  查看开放端口"
+    echo -e " a  开放开放端口"
+    echo -e " rm  移除开放端口\n"
+
+    echo -e " q  退出\n"
+
+     echo -e "选择命令: \c"
+
+}
+
+sys_firewall_exec(){
+    case $1 in
+        "p") echo "$(firewall-cmd --state)"
+        return $?
+        ;;
+        "s") echo "$(systemctl start firewalld)"
+        return $?
+        ;;
+        "t") echo "$(systemctl stop firewalld)"
+        return $?
+        ;;
+        "r") echo "$(systemctl reload firewalld)"
+        return $?
+        ;;
+        "l") echo "$(firewall-cmd --list-ports)"
+        return $?
+        ;;
+    esac
+
+    if [[ $1 = "a" ]]; then
+
+        echo -e "输入要开放的端口 [1-65535]: \c"
+        P=$(readn)
+
+        if [[ $P -gt 0 && $p -le 65535 ]]; then
+            echo "端口输入: $P"
+        else
+            echo "无效的端口输入: $P"
+            return 1
+        fi
+
+        read -p "输入端口协议 [tcp or udp, default tcp]: " TCP
+        
+        if [[ -z $TCP ]]; then
+            TCP="tcp"
+        fi
+
+        if [[ $TCP != "tcp" && $TCP != "udp" ]]; then
+            echo "无效的输入: $TCP"
+            return 1
+        else
+            echo "TCP: $TCP"
+        fi
+
+        firewall-cmd --zone=public --add-port=$P/$TCP --permanent
+        firewall-cmd --reload
+
+        return $?
+    fi
+
+    if [[ $1 = "rm" ]]; then
+
+        echo -e "输入要移除的端口 [1-65535]: \c"
+        P=$(readn)
+
+        if [[ $P -gt 0 && $p -le 65535 ]]; then
+            echo "端口输入: $P"
+        else
+            echo "无效的端口输入: $P"
+            return 1
+        fi
+
+        read -p "输入端口协议 [tcp or udp, default tcp]: " TCP
+        
+        if [[ -z $TCP ]]; then
+            TCP="tcp"
+        fi
+
+        if [[ $TCP != "tcp" && $TCP != "udp" ]]; then
+            echo "无效的输入: $TCP"
+            return 1
+        else
+            echo "TCP: $TCP"
+        fi
+
+        firewall-cmd --zone=public --remove-port=$P/$TCP --permanent
+        firewall-cmd --reload
+
+        return $?
+    fi
+
+    echo  "无效的命令：$1"
+}
+
+sys_firewall() {
+    sys_firewall_cmd
+    CMD=$(readn)
+    if [[ $CMD != "q" ]]; then
+        sys_firewall_exec $CMD
+    fi
+}
+#! link: src/net.sh
+
+change_static_ip(){
+
+    echo -e "\n\n===============变更静态IP=====================\n\n"
+
+    CONFDIR=/etc/sysconfig/network-scripts/
+
+    echo -e "network dev list:"
+
+    ls -l "$CONFDIR" | grep ifcfg | grep -v bak |awk '{print $9}' | awk -F- '{print $2}'
+
+
+    echo -e "\nselect the dev: \c"
+
+    ENS=$(readn)
+
+    FILE="${CONFDIR}ifcfg-$ENS"
+
+    if [ ! -e $FILE ]; then
+        echo "不存在的网卡$ENS, 请重新设置！！"
+        return
+    fi
+
+    echo -e "input the ipv4 address: \c"
+
+    while true
+    do
+        IP=$(readn)
+        is_ipv4 $IP # 是否是有效的IP
+
+        if [ $? -eq 0 ]; then 
+            break
+        else
+            echo "invalid ip: $IP"
+            echo -e "input the ipv4 address again: \c"
+        fi
+    done
+
+    read -p "input the gateway [192.168.1.1]: " GATEWAY
+
+    while true
+    do
+        if [ -z $GATEWAY ]; then
+            GATEWAY="192.168.1.1"
+        fi
+        is_ipv4 $GATEWAY # 是否是有效的IP
+        if [ $? -eq 0 ]; then 
+            break
+        else
+            echo "invalid gateway: $GATEWAY"
+            read -p "input the gateway again [192.168.1.1]: " GATEWAY
+        fi
+    done
+
+    read -p "input the netmask [255.255.255.0]: " NETMASK
+
+    while true
+    do
+        if [ -z $NETMASK ]; then
+            NETMASK="255.255.255.0"
+        fi
+        is_ipv4 $NETMASK # 是否是有效的IP
+        if [ $? -eq 0 ]; then 
+            break
+        else
+            echo "invalid netmask: $NETMASK"
+            read -p "input the netmask again [255.255.255.0]: " NETMASK
+        fi
+    done
+
+
+    #sed -e 可以连续修改多个参数# 
+    sed -i -e 's/dhcp/static/g' -e 's/^ONBOOT/#ONBOOT/g' -e 's/^IPADDR/#IPADDR/g' -e 's/^PREFIX/#PREFIX/g' -e 's/^NETMASK/#NETMASK/g' -e 's/^GATEWAY/#GATEWAY/g' $FILE
+
+    echo -e "ONBOOT=yes\nIPADDR=$IP\nPREFIX=24\nNETMASK=$NETMASK\nGATEWAY=$GATEWAY\n" >>$FILE
+
+    echo -e "\n\nThis IP address Change success ! Please reboot the server\n"
+
+    echo "config: $FILE"
+    echo "ipv4: $IP"
+    echo "netmask: $NETMASK"
+    echo -e "gateway: $GATEWAY\n\n"
+}
+#! link: src/docker.sh
+
+install_docker() {
+    VERSION=`cat /etc/redhat-release|grep '^CentOS [a-zA-Z ]* [7|8]$'`
+
+    if [[ -z $VERSION ]]; then
+        echo "当前的操作系统为：$(cat /etc/redhat-release), 本脚本仅支持 CentOS 7 or 8"
+        return 1
+    fi
+
+    # 列出已安装的列表，是否存在历史版本
+    yum list installed | grep docker
+
+    if [[ $? -eq 0 ]]; then
+        echo -e "\n已安装以上Docker版本, 安装前请先卸载。"
+        return 1
+    fi
+
+    #yum install -y yum-utils
+    #yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+
+    #echo "Docker版本列表: "
+    #yum list docker-ce --showduplicates --available | sort -r | grep docker | awk '{print $2}'|awk -F '[:-]' '{print $2}'
+
+    yum install docker-ce docker-ce-cli containerd.io -y
+    if [[ $? -ne 0 ]]; then
+       return 1
+    fi
+
+    systemctl start docker
+    docker run hello-world
+}
+#! link: src/fuck.sh
+
+commands=(
+    "01 系统版本信息 sys_info"
+    "02 CPU信息 sys_info"
+    "03 配置静态IP change_static_ip"
+    "04 防火墙设置 sys_firewall"
+    "05 安装Docker环境 install_docker"
+    "06 防火墙设置 sys_firewall"
+)
+
+load_panel() {
+    echo "===============FUCK 命令行=================="
+
+    length=${#commands[@]}
+
+    i=0
+    while [ $i -lt $length ]; do
+        # 字符串转数组，分隔符为空白符
+        element=(${commands[$i]})
+
+        if [[ $(expr $i % 2) -ne 0 ]]; then
+            printf "(%s) %-30s\n" "${element[0]}" "${element[1]}"
+            # echo "(${element[0]}) ${element[1]}  0000"
+        else
+            printf "(%s) %-30s" "${element[0]}" "${element[1]}"
+        fi
+
+        #按下标打印数组元素
+        let i++
+    done
+
+    echo "============================================"
+    echo -e "\nTIPS: 按下 <CTRL-D> 退出\n" # -e 开启转义
+    echo -e "请输入命令编号：\c"               # \c 不换行
+}
+
+exec() {
+    length=${#commands[@]}
+    i=0
+    while [ $i -lt $length ]; do
+        # 字符串转数组，分隔符为空白符
+        element=(${commands[$i]})
+
+        if [[ $1 = "${element[0]}" ]]; then
+            cmd="${element[2]}"
+            break
+        fi
+
+        #按下标打印数组元素
+        let i++
+    done
+
+    if [[ $i -le $length && -n "$cmd" ]]; then
+        $cmd
+        unset cmd
+    else
+        echo "未识别的编号：$1"
+    fi
+}
+
+load_panel
+while read number; do
+    if [ -z "$number" ]; then
+        continue
+    fi
+    if [ $number = "0" ]; then
+        exit
+    fi
+    exec $number
+    break
+    load_panel
+done
