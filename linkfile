@@ -1,0 +1,7 @@
+#! 注意文件的依赖关系
+
+src/tool.sh
+src/system.sh
+src/net.sh
+src/docker.sh
+src/fuck.sh

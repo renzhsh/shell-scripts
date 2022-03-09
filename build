@@ -1,0 +1,22 @@
+#! /bin/bash
+#! author: sheng
+#! date: 2022-03-09
+
+TARGET=dist/fuck
+
+files=(`cat linkfile |grep -v '#'|grep -v '^$'`)
+
+rm -rf dist
+mkdir dist
+
+echo "#! /bin/bash" >> $TARGET
+echo "#! author: sheng" >> $TARGET
+echo -e "#! date: `date`\n\n" >> $TARGET
+
+for element in ${files[@]}
+do
+    echo "#! link: $element" >> $TARGET
+    cat $element | grep -v '^#' >> $TARGET
+done
+
+chmod u+x $TARGET

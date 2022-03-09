@@ -2,8 +2,9 @@
 #! author: sheng
 #! date: 2022-03-05
 
-source ./src/tool.sh
-source ./src/system.sh
-source ./src/net.sh
-source ./src/docker.sh
-source ./src/fuck.sh
+files=(`cat linkfile |grep -v '#'|grep -v '^$'`)
+
+for element in ${files[@]}
+do
+    source $element
+done
